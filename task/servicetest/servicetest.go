@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	platform "github.com/influxdata/influxdb"
+	icontext "github.com/influxdata/influxdb/context"
 	"github.com/influxdata/influxdb/snowflake"
 	"github.com/influxdata/influxdb/task"
 	"github.com/influxdata/influxdb/task/backend"
@@ -108,11 +109,20 @@ type System struct {
 }
 
 func testTaskCRUD(t *testing.T, sys *System) {
-	orgID, userID, _ := creds(t, sys)
-
+	orgID, userID, tok := creds(t, sys)
+	authorizer := &platform.Authorization{
+		ID:     orgID + userID,
+		Token:  tok,
+		OrgID:  orgID,
+		UserID: userID,
+	}
 	// Create a task.
-	task := &platform.Task{OrganizationID: orgID, Owner: platform.User{ID: userID}, Flux: fmt.Sprintf(scriptFmt, 0)}
-	if err := sys.ts.CreateTask(sys.Ctx, task); err != nil {
+	ct := platform.TaskCreate{
+		OrganizationID: orgID,
+		Flux:           fmt.Sprintf(scriptFmt, 0),
+	}
+	task, err := sys.ts.CreateTask(icontext.SetAuthorizer(sys.Ctx, authorizer), ct)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if !task.ID.Valid() {
@@ -250,10 +260,20 @@ func testTaskCRUD(t *testing.T, sys *System) {
 }
 
 func testMetaUpdate(t *testing.T, sys *System) {
-	orgID, userID, _ := creds(t, sys)
+	orgID, userID, tok := creds(t, sys)
+	authorizer := &platform.Authorization{
+		ID:     orgID + userID,
+		Token:  tok,
+		OrgID:  orgID,
+		UserID: userID,
+	}
 
-	task := &platform.Task{OrganizationID: orgID, Owner: platform.User{ID: userID}, Flux: fmt.Sprintf(scriptFmt, 0)}
-	if err := sys.ts.CreateTask(sys.Ctx, task); err != nil {
+	ct := platform.TaskCreate{
+		OrganizationID: orgID,
+		Flux:           fmt.Sprintf(scriptFmt, 0),
+	}
+	task, err := sys.ts.CreateTask(icontext.SetAuthorizer(sys.Ctx, authorizer), ct)
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -294,15 +314,25 @@ func testMetaUpdate(t *testing.T, sys *System) {
 }
 
 func testTaskRuns(t *testing.T, sys *System) {
-	orgID, userID, _ := creds(t, sys)
+	orgID, userID, tok := creds(t, sys)
+	authorizer := &platform.Authorization{
+		ID:     orgID + userID,
+		Token:  tok,
+		OrgID:  orgID,
+		UserID: userID,
+	}
 
 	t.Run("FindRuns and FindRunByID", func(t *testing.T) {
 		t.Parallel()
 
 		// Script is set to run every minute. The platform adapter is currently hardcoded to schedule after "now",
 		// which makes timing of runs somewhat difficult.
-		task := &platform.Task{OrganizationID: orgID, Owner: platform.User{ID: userID}, Flux: fmt.Sprintf(scriptFmt, 0)}
-		if err := sys.ts.CreateTask(sys.Ctx, task); err != nil {
+		ct := platform.TaskCreate{
+			OrganizationID: orgID,
+			Flux:           fmt.Sprintf(scriptFmt, 0),
+		}
+		task, err := sys.ts.CreateTask(icontext.SetAuthorizer(sys.Ctx, authorizer), ct)
+		if err != nil {
 			t.Fatal(err)
 		}
 		st, err := sys.S.FindTaskByID(sys.Ctx, task.ID)
@@ -449,8 +479,12 @@ func testTaskRuns(t *testing.T, sys *System) {
 
 		// Script is set to run every minute. The platform adapter is currently hardcoded to schedule after "now",
 		// which makes timing of runs somewhat difficult.
-		task := &platform.Task{OrganizationID: orgID, Owner: platform.User{ID: userID}, Flux: fmt.Sprintf(scriptFmt, 0)}
-		if err := sys.ts.CreateTask(sys.Ctx, task); err != nil {
+		ct := platform.TaskCreate{
+			OrganizationID: orgID,
+			Flux:           fmt.Sprintf(scriptFmt, 0),
+		}
+		task, err := sys.ts.CreateTask(icontext.SetAuthorizer(sys.Ctx, authorizer), ct)
+		if err != nil {
 			t.Fatal(err)
 		}
 		st, err := sys.S.FindTaskByID(sys.Ctx, task.ID)
@@ -540,8 +574,12 @@ func testTaskRuns(t *testing.T, sys *System) {
 	t.Run("ForceRun", func(t *testing.T) {
 		t.Parallel()
 
-		task := &platform.Task{OrganizationID: orgID, Owner: platform.User{ID: userID}, Flux: fmt.Sprintf(scriptFmt, 0)}
-		if err := sys.ts.CreateTask(sys.Ctx, task); err != nil {
+		ct := platform.TaskCreate{
+			OrganizationID: orgID,
+			Flux:           fmt.Sprintf(scriptFmt, 0),
+		}
+		task, err := sys.ts.CreateTask(icontext.SetAuthorizer(sys.Ctx, authorizer), ct)
+		if err != nil {
 			t.Fatal(err)
 		}
 
@@ -581,8 +619,12 @@ func testTaskRuns(t *testing.T, sys *System) {
 	t.Run("FindLogs", func(t *testing.T) {
 		t.Parallel()
 
-		task := &platform.Task{OrganizationID: orgID, Owner: platform.User{ID: userID}, Flux: fmt.Sprintf(scriptFmt, 0)}
-		if err := sys.ts.CreateTask(sys.Ctx, task); err != nil {
+		ct := platform.TaskCreate{
+			OrganizationID: orgID,
+			Flux:           fmt.Sprintf(scriptFmt, 0),
+		}
+		task, err := sys.ts.CreateTask(icontext.SetAuthorizer(sys.Ctx, authorizer), ct)
+		if err != nil {
 			t.Fatal(err)
 		}
 		st, err := sys.S.FindTaskByID(sys.Ctx, task.ID)
@@ -667,10 +709,16 @@ func testTaskRuns(t *testing.T, sys *System) {
 }
 
 func testTaskConcurrency(t *testing.T, sys *System) {
-	orgID, userID, _ := creds(t, sys)
+	orgID, userID, tok := creds(t, sys)
+	authorizer := &platform.Authorization{
+		ID:     orgID + userID,
+		Token:  tok,
+		OrgID:  orgID,
+		UserID: userID,
+	}
 
 	const numTasks = 450 // Arbitrarily chosen to get a reasonable count of concurrent creates and deletes.
-	taskCh := make(chan *platform.Task, numTasks)
+	createTaskCh := make(chan platform.TaskCreate, numTasks)
 
 	// Since this test is run in parallel with other tests,
 	// we need to keep a whitelist of IDs that are okay to delete.
@@ -683,9 +731,12 @@ func testTaskConcurrency(t *testing.T, sys *System) {
 		createWg.Add(1)
 		go func() {
 			defer createWg.Done()
-			for task := range taskCh {
-				if err := sys.ts.CreateTask(sys.Ctx, task); err != nil {
+			aCtx := icontext.SetAuthorizer(sys.Ctx, authorizer)
+			for ct := range createTaskCh {
+				task, err := sys.ts.CreateTask(aCtx, ct)
+				if err != nil {
 					t.Errorf("error creating task: %v", err)
+					continue
 				}
 				idMu.Lock()
 				taskIDs[task.ID] = struct{}{}
@@ -816,15 +867,14 @@ func testTaskConcurrency(t *testing.T, sys *System) {
 
 	// Start adding tasks.
 	for i := 0; i < numTasks; i++ {
-		taskCh <- &platform.Task{
+		createTaskCh <- platform.TaskCreate{
 			OrganizationID: orgID,
-			Owner:          platform.User{ID: userID},
 			Flux:           fmt.Sprintf(scriptFmt, i),
 		}
 	}
 
 	// Done adding. Wait for cleanup.
-	close(taskCh)
+	close(createTaskCh)
 	createWg.Wait()
 	extraWg.Wait()
 }
