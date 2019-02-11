@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	dashboardBucket         = []byte("dashboardsv2")
-	orgDashboardIndex       = []byte("orgsdashboardsv1")
-	dashboardCellViewBucket = []byte("dashboardcellviewsv1")
+	dashboardBucket         = []byte("dashboards/v2")
+	orgDashboardIndex       = []byte("orgsdashboards/v1")
+	dashboardCellViewBucket = []byte("dashboardcellviews/v1")
 )
 
 // TODO(desa): what do we want these to be?

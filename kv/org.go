@@ -92,7 +92,6 @@ func (s *Service) FindOrganizationByName(ctx context.Context, n string) (*influx
 	err := s.kv.View(func(tx Tx) error {
 		org, err := s.findOrganizationByName(ctx, tx, n)
 		if err != nil {
-			fmt.Println(n, err)
 			return err
 		}
 		o = org
